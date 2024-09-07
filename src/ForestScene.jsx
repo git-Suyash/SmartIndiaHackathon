@@ -1,6 +1,5 @@
 import React, { useRef, useEffect } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 const ForestScene = () => {
   const mountRef = useRef(null);
@@ -12,15 +11,6 @@ const ForestScene = () => {
 
     renderer.setSize(window.innerWidth, window.innerHeight);
     mountRef.current.appendChild(renderer.domElement);
-
-    // Add OrbitControls
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.screenSpacePanning = false;
-    controls.minDistance = 5;
-    controls.maxDistance = 50;
-    controls.maxPolarAngle = Math.PI / 2;
 
     // Create sky
     const skyGeometry = new THREE.SphereGeometry(500, 32, 32);
@@ -88,6 +78,13 @@ const ForestScene = () => {
       scene.add(tree);
     }
 
+    // Create character
+    const characterGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
+    const characterMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    const character = new THREE.Mesh(characterGeometry, characterMaterial);
+    character.position.y = 0.5;
+    scene.add(character);
+
     // Add ambient light
     const ambientLight = new THREE.AmbientLight(0x404040);
     scene.add(ambientLight);
@@ -97,12 +94,60 @@ const ForestScene = () => {
     directionalLight.position.set(1, 1, 1);
     scene.add(directionalLight);
 
-    camera.position.set(0, 5, 10);
-    controls.update();
+    // Camera setup
+    const cameraOffset = new THREE.Vector3(0, 2, 5);
+    camera.position.copy(character.position).add(cameraOffset);
+    camera.lookAt(character.position);
+
+    // Character and camera movement
+    const moveSpeed = 0.1;
+    const turnSpeed = 0.02;
+    const keysPressed = {};
+    let mouseX = 0;
+
+    document.addEventListener('keydown', (event) => {
+      keysPressed[event.key.toLowerCase()] = true;
+    });
+
+    document.addEventListener('keyup', (event) => {
+      keysPressed[event.key.toLowerCase()] = false;
+    });
+
+    document.addEventListener('mousemove', (event) => {
+      mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+    });
+
+    const moveCharacter = () => {
+      const direction = new THREE.Vector3();
+
+      if (keysPressed['w']) direction.z -= 1;
+      if (keysPressed['s']) direction.z += 1;
+      if (keysPressed['a']) direction.x -= 1;
+      if (keysPressed['d']) direction.x += 1;
+
+      direction.normalize().multiplyScalar(moveSpeed);
+
+      // Rotate direction based on character rotation
+      direction.applyQuaternion(character.quaternion);
+
+      character.position.add(direction);
+
+      // Rotate character based on mouse movement
+      character.rotation.y -= mouseX * turnSpeed;
+
+      // Update camera position
+      const idealOffset = cameraOffset.clone().applyQuaternion(character.quaternion);
+      const idealLookat = new THREE.Vector3(0, 1, -3).applyQuaternion(character.quaternion);
+
+      const t = 0.1; // Smoothing factor
+      camera.position.lerp(character.position.clone().add(idealOffset), t);
+      const targetLookAt = character.position.clone().add(idealLookat);
+      camera.lookAt(targetLookAt);
+    };
 
     const animate = () => {
       requestAnimationFrame(animate);
-      controls.update();
+      moveCharacter();
       renderer.render(scene, camera);
     };
 
@@ -126,8 +171,9 @@ const ForestScene = () => {
   return (
     <div className="w-full h-screen" ref={mountRef}>
       <div className="absolute top-4 left-4 bg-white bg-opacity-75 p-4 rounded-lg">
-        <h1 className="text-2xl font-bold text-green-800">Forest Scene</h1>
-        <p className="text-sm text-gray-600">Use mouse to move around</p>
+        <h1 className="text-2xl font-bold text-green-800">Forest Explorer</h1>
+        <p className="text-sm text-gray-600">Use W, A, S, D keys to move</p>
+        <p className="text-sm text-gray-600">Move mouse left/right to turn</p>
       </div>
     </div>
   );
