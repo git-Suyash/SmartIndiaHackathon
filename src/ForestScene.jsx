@@ -1,10 +1,13 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 
 const ForestScene = () => {
   const mountRef = useRef(null);
+  const [isGameStarted, setIsGameStarted] = useState(false); // State to manage game start
 
   useEffect(() => {
+    if (!isGameStarted) return;
+
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
@@ -145,10 +148,26 @@ const ForestScene = () => {
       camera.lookAt(targetLookAt);
     };
 
+    const clock = new THREE.Clock(); // Clock to track time
+    let lastTime = 0; // Track the last time the animation was rendered
+    const targetFPS = 60;
+    const frameInterval = 1 / targetFPS;
+
     const animate = () => {
       requestAnimationFrame(animate);
-      moveCharacter();
-      renderer.render(scene, camera);
+
+      // Calculate time elapsed
+      const elapsedTime = clock.getElapsedTime();
+      const deltaTime = elapsedTime - lastTime;
+
+      if (deltaTime >= frameInterval) {
+        // Update the last time
+        lastTime = elapsedTime - (deltaTime % frameInterval);
+
+        // Move the character and render the scene
+        moveCharacter();
+        renderer.render(scene, camera);
+      }
     };
 
     animate();
@@ -166,15 +185,70 @@ const ForestScene = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current.removeChild(renderer.domElement);
     };
-  }, []);
+  }, [isGameStarted]);
+
+  const handleLogin = async () => {
+    try {
+      // Add login logic here
+      console.log("Login function called");
+      // Simulate success
+      setIsGameStarted(true);
+    } catch (error) {
+      console.error("Login failed: ", error);
+      alert("Login failed. Please try again.");
+    }
+  };
+
+  const handlePlayAsGuest = async () => {
+    try {
+      // Add guest login logic here
+      console.log("Play as Guest function called");
+      // Simulate success
+      setIsGameStarted(true);
+    } catch (error) {
+      console.error("Guest login failed: ", error);
+      alert("Unable to play as guest. Please try again.");
+    }
+  };
 
   return (
     <div className="w-full h-screen" ref={mountRef}>
-      <div className="absolute top-4 left-4 bg-white bg-opacity-75 p-4 rounded-lg">
-        <h1 className="text-2xl font-bold text-green-800">Forest Explorer</h1>
-        <p className="text-sm text-gray-600">Use W, A, S, D keys to move</p>
-        <p className="text-sm text-gray-600">Move mouse left/right to turn</p>
-      </div>
+      {!isGameStarted && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-white mb-8">Welcome to Forest Explorer</h1>
+            <button
+              onClick={handleLogin}
+              className="text-white bg-green-600 hover:bg-green-700 focus:ring-4 focus:ring-green-300 rounded-lg px-6 py-3 m-2"
+              style={{
+                transform: 'perspective(500px) rotateX(10deg)',
+                boxShadow: '0px 4px 20px rgba(0, 128, 0, 0.5)',
+                transition: 'transform 0.3s ease'
+              }}
+            >
+              Login
+            </button>
+            <button
+              onClick={handlePlayAsGuest}
+              className="text-white bg-blue-600 hover:bg-blue-700 focus:ring-4 focus:ring-blue-300 rounded-lg px-6 py-3 m-2"
+              style={{
+                transform: 'perspective(500px) rotateX(10deg)',
+                boxShadow: '0px 4px 20px rgba(0, 0, 128, 0.5)',
+                transition: 'transform 0.3s ease'
+              }}
+            >
+              Play as Guest
+            </button>
+          </div>
+        </div>
+      )}
+      {isGameStarted && (
+        <div className="absolute top-4 left-4 bg-white bg-opacity-75 p-4 rounded-lg">
+          <h1 className="text-2xl font-bold text-green-800">Forest Explorer</h1>
+          <p className="text-sm text-gray-600">Use W, A, S, D keys to move</p>
+          <p className="text-sm text-gray-600">Move mouse left/right to turn</p>
+        </div>
+      )}
     </div>
   );
 };
