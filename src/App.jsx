@@ -1,3 +1,4 @@
+import "./app.css"
 import ForestScene from "./ForestScene"
 
 function App() {

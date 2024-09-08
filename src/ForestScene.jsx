@@ -1,9 +1,18 @@
 import React, { useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
+import { useLoader } from '@react-three/fiber';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 
 const ForestScene = () => {
   const mountRef = useRef(null);
-  const [isGameStarted, setIsGameStarted] = useState(false); // State to manage game start
+  const [isGameStarted, setIsGameStarted] = useState(false);
+
+  // Load the Bush model only once
+  const bushModel = useLoader(GLTFLoader, "./Assets/Bush.glb");
+  const baseTreeModel = useLoader(GLTFLoader, "./Assets/base_Tree1.glb");
+  const baseTreeModel2 = useLoader(GLTFLoader, "./Assets/base_tree2.glb");
+  const grassPatchModel = useLoader(GLTFLoader, "./Assets/better_grass_part2.glb");
+  const FloraModel = useLoader(GLTFLoader,"./Assets/GeoNodes3.gltf");
 
   useEffect(() => {
     if (!isGameStarted) return;
@@ -22,7 +31,7 @@ const ForestScene = () => {
         topColor: { value: new THREE.Color(0x0077ff) },
         bottomColor: { value: new THREE.Color(0xffffff) },
         offset: { value: 33 },
-        exponent: { value: 0.6 }
+        exponent: { value: 0.6 },
       },
       vertexShader: `
         varying vec3 vWorldPosition;
@@ -43,7 +52,7 @@ const ForestScene = () => {
           gl_FragColor = vec4(mix(bottomColor, topColor, max(pow(max(h, 0.0), exponent), 0.0)), 1.0);
         }
       `,
-      side: THREE.BackSide
+      side: THREE.BackSide,
     });
     const sky = new THREE.Mesh(skyGeometry, skyMaterial);
     scene.add(sky);
@@ -54,39 +63,81 @@ const ForestScene = () => {
     const ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     scene.add(ground);
+    // grassPatchModel.scene.scale.set(100,100);
+    // grassPatchModel.scene.rotation.x = -Math.PI/2;
+    // scene.add(grassPatchModel.scene);
 
-    // Function to create a tree
-    const createTree = (x, z) => {
-      const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2, 8);
-      const trunkMaterial = new THREE.MeshPhongMaterial({ color: 0x8B4513 });
-      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-
-      const leavesGeometry = new THREE.ConeGeometry(1, 2, 8);
-      const leavesMaterial = new THREE.MeshPhongMaterial({ color: 0x228B22 });
-      const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-      leaves.position.y = 2;
-
-      const tree = new THREE.Group();
-      tree.add(trunk);
-      tree.add(leaves);
-      tree.position.set(x, 1, z);
-      return tree;
+    // Function to create a bush
+    const createBush = (x, z) => {
+      const bush = new THREE.Group();
+      bush.add(bushModel.scene.clone()); // Add the loaded model to the bush
+      bush.position.set(x, 1.5, z);
+      return bush;
     };
 
-    // Add trees to the scene
+    const createFlora = (x, z) => {
+      const flora = new THREE.Group();
+      flora.add(FloraModel.scene.clone()); // Add the loaded model to the bush
+      flora.position.set(x, 1.5, z);
+      return flora;
+    };
+
+    // Add bushs to the scene
     for (let i = 0; i < 50; i++) {
       const x = Math.random() * 80 - 40;
       const z = Math.random() * 80 - 40;
-      const tree = createTree(x, z);
-      scene.add(tree);
+      const bush = createBush(x, z);
+      scene.add(bush);
     }
 
+    for (let i = 0; i < 15; i++) {
+      const x = Math.random() * 80 - 40;
+      const z = Math.random() * 80 - 40;
+      const flora = createFlora(x, z);
+      scene.add(flora);
+    }
+    //gltf bush model
+
+    baseTreeModel.scene.position.set(-5, 0.5, 1);
+    baseTreeModel.scene.scale.set(0.5, 0.5, 0.5);
+    scene.add(baseTreeModel.scene);
+
+    baseTreeModel2.scene.position.set(5, 0.5, 1);
+    baseTreeModel2.scene.scale.set(0.5, 0.5, 0.5);
+    scene.add(baseTreeModel2.scene);
+
     // Create character
-    const characterGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
+    const characterGeometry = new THREE.BoxGeometry(0.75, 1, 0.5);
     const characterMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
     const character = new THREE.Mesh(characterGeometry, characterMaterial);
-    character.position.y = 0.5;
-    scene.add(character);
+    character.position.y = 1.75; // Position torso so its bottom sits on the ground
+
+    // Create head (sphere) and add it on top of the torso
+    const headGeometry = new THREE.SphereGeometry(0.25, 32, 32); // Radius 0.25 units
+    const headMaterial = new THREE.MeshPhongMaterial({ color: 0xffcc00 });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = .75; // Position head on top of the torso
+
+    // Create left leg and add it below the torso
+    const legGeometry = new THREE.BoxGeometry(0.2, 0.5, 0.2); // Narrower rectangle for the leg
+    const legMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
+    leftLeg.position.set(-0.15, 0.2, 0); // Position left leg slightly left and below the torso
+
+    // Create right leg and add it below the torso
+    const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
+    rightLeg.position.set(0.15, 0.2, 0); // Position right leg slightly right and below the torso
+
+    // Group all parts together
+    const characterGroup = new THREE.Group();
+    characterGroup.add(character); // Add torso
+    character.add(head); // Add head to torso
+    character.add(leftLeg); // Add left leg to torso
+    character.add(rightLeg); // Add right leg to torso
+
+    // Add the group to the scene so it moves as a single entity
+    scene.add(characterGroup);
+
 
     // Add ambient light
     const ambientLight = new THREE.AmbientLight(0x404040);
@@ -185,13 +236,11 @@ const ForestScene = () => {
       window.removeEventListener('resize', handleResize);
       mountRef.current.removeChild(renderer.domElement);
     };
-  }, [isGameStarted]);
+  }, [isGameStarted, bushModel]);
 
   const handleLogin = async () => {
     try {
-      // Add login logic here
       console.log("Login function called");
-      // Simulate success
       setIsGameStarted(true);
     } catch (error) {
       console.error("Login failed: ", error);
@@ -201,9 +250,7 @@ const ForestScene = () => {
 
   const handlePlayAsGuest = async () => {
     try {
-      // Add guest login logic here
       console.log("Play as Guest function called");
-      // Simulate success
       setIsGameStarted(true);
     } catch (error) {
       console.error("Guest login failed: ", error);
